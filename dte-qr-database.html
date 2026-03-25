@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Base DTE — GrupoRVQ QR</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0b0c10;--surf:#13151b;--card:#1a1d26;--border:#252836;
+  --accent:#e63222;--acc2:#ff7043;--green:#10b981;--yellow:#f59e0b;
+  --text:#dde1ec;--muted:#5a6278;
+  --mono:'Share Tech Mono',monospace;--sans:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+#shell{display:grid;grid-template-rows:52px 1fr;height:100vh}
+#body{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 52px)}
+
+/* topbar */
+#topbar{background:var(--surf);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.9rem;padding:0 1.25rem;z-index:50}
+.logo{width:30px;height:30px;background:var(--accent);border-radius:5px;display:grid;place-items:center;font-weight:800;font-size:.85rem;color:#fff;flex-shrink:0}
+.top-title{font-size:.95rem;font-weight:700;color:#fff}
+.top-sub{font-size:.65rem;color:var(--muted);letter-spacing:.04em}
+.spacer{flex:1}
+.pill{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:.18rem .65rem;font-size:.68rem;display:flex;align-items:center;gap:.3rem;font-family:var(--mono)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* sidebar */
+#sidebar{background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-sec{padding:.85rem;border-bottom:1px solid var(--border)}
+.sb-sec h3{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.6rem}
+
+.inp{width:100%;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:.45rem .7rem;color:var(--text);font-family:var(--mono);font-size:.8rem;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--accent)}
+
+.btn{cursor:pointer;border:none;border-radius:7px;font-family:var(--sans);font-weight:700;font-size:.78rem;padding:.45rem .9rem;transition:opacity .15s,transform .1s;display:inline-flex;align-items:center;gap:.35rem}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.b-red{background:var(--accent);color:#fff}
+.b-ghost{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.b-green{background:#064e3b;color:#6ee7b7;border:1px solid #065f46}
+.b-blue{background:#1e3a5f;color:#93c5fd;border:1px solid #2563eb44}
+
+.srch-wrap{position:relative}
+.srch-wrap input{padding-left:1.9rem}
+.srch-ico{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.8rem;pointer-events:none;opacity:.5}
+
+.chips{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:.2rem .65rem;font-size:.68rem;cursor:pointer;transition:background .15s,border-color .15s}
+.chip:hover,.chip.on{background:#1f2336;border-color:var(--accent);color:#fff}
+
+#list{flex:1;overflow-y:auto;padding:.4rem}
+.ri{padding:.55rem .7rem;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:.25rem;transition:background .12s,border-color .12s}
+.ri:hover{background:var(--card);border-color:var(--border)}
+.ri.on{background:var(--card);border-color:var(--accent)}
+.ri-name{font-size:.8rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-meta{font-size:.67rem;color:var(--muted);font-family:var(--mono);margin-top:.1rem;display:flex;gap:.5rem;flex-wrap:wrap}
+.ri-cod{color:var(--accent);font-size:.62rem}
+.ri-fecha{color:var(--green)}
+.ri-total{color:var(--green);font-weight:600}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--muted);font-size:.78rem;line-height:1.8}
+
+/* detail */
+#detail{overflow-y:auto;background:var(--bg);display:flex;flex-direction:column}
+#ph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;color:var(--muted)}
+#ph .icon{font-size:2.8rem;opacity:.2}
+#dc{display:none;flex-direction:column;flex:1}
+#dh{position:sticky;top:0;z-index:20;background:var(--surf);border-bottom:1px solid var(--border);padding:.7rem 1.25rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}
+#d-title{font-weight:800;font-size:1rem;color:#fff;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{display:inline-flex;align-items:center;padding:.15rem .55rem;border-radius:20px;font-size:.65rem;font-weight:700;font-family:var(--mono)}
+.b-badge{background:#1e3a5f;color:#7dd3fc;border:1px solid #2563eb33}
+.b-ok{background:#14532d;color:#86efac;border:1px solid #16a34a33}
+.b-pending{background:#451a03;color:#fdba74;border:1px solid #c2410c33}
+
+#tarea{display:flex;justify-content:center;padding:2rem 1rem 4rem}
+.ticket{background:#faf7f0;color:#111;width:305px;padding:1rem .85rem;font-family:var(--mono);font-size:.69rem;line-height:1.58;border-radius:3px 3px 0 0;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.55)}
+.ticket::after{content:'';position:absolute;bottom:-9px;left:-2px;right:-2px;height:9px;background:repeating-linear-gradient(-45deg,#faf7f0 0 4.5px,transparent 4.5px 9px)}
+.t-stars{text-align:center;color:#999;font-size:.6rem;overflow:hidden;white-space:nowrap}
+.t-c{text-align:center}.t-kv{display:flex;gap:.15rem}.t-k{color:#666;white-space:nowrap;flex-shrink:0}.t-v{word-break:break-all}
+.t-sec{text-align:center;font-weight:bold;font-size:.69rem;letter-spacing:.05em;margin:.2rem 0}
+.t-dash{border:none;border-top:1px dashed #bbb;margin:.38rem 0}
+.t-solid{border:none;border-top:1px solid #999;margin:.38rem 0}
+.t-total{display:flex;justify-content:space-between;font-size:.87rem;font-weight:bold;padding-top:.3rem;border-top:1px solid #999;margin-top:.35rem}
+.t-nf{text-align:center;font-size:.63rem;color:#666;margin:.3rem 0;line-height:1.5}
+
+/* loading spinner */
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* sync panel */
+#sync-panel{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center}
+#sync-panel.on{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.75rem;width:min(520px,95vw);box-shadow:0 40px 100px rgba(0,0,0,.7)}
+.modal h2{font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:1rem}
+.progress-track{background:var(--border);border-radius:4px;height:5px;overflow:hidden;margin:.65rem 0 .35rem}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--acc2));transition:width .25s}
+.prog-lbl{font-size:.68rem;color:var(--muted);font-family:var(--mono)}
+#log{background:var(--surf);border-radius:7px;padding:.65rem;font-family:var(--mono);font-size:.67rem;color:#7c8db5;height:120px;overflow-y:auto;border:1px solid var(--border);margin-top:.65rem;white-space:pre-wrap}
+
+/* steps */
+.step{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:.75rem}
+.step h4{font-size:.78rem;font-weight:700;color:#fff;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
+.step p{font-size:.72rem;color:var(--muted);line-height:1.6}
+.step code{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;font-family:var(--mono);font-size:.72rem;color:#93c5fd}
+
+#toast{position:fixed;bottom:1.25rem;right:1.25rem;z-index:400;background:#1c2035;border:1px solid var(--border);border-radius:9px;padding:.65rem 1rem;font-size:.8rem;color:#fff;transform:translateY(60px);opacity:0;transition:all .28s;pointer-events:none}
+#toast.on{transform:translateY(0);opacity:1}
+
+@media print{
+  #topbar,#sidebar,#dh,#sync-panel{display:none!important}
+  #body{grid-template-columns:1fr}
+  #detail{overflow:visible}
+  #tarea{padding:0;justify-content:center}
+  .ticket{box-shadow:none!important;background:#fff!important;color:#000!important}
+  .ticket::after{display:none!important}
+}
+</style>
+</head>
+<body>
+<div id="shell">
+
+<div id="topbar">
+  <div class="logo">G</div>
+  <div>
+    <div class="top-title">GrupoRVQ · Base DTE por QR</div>
+    <div class="top-sub">Índice desde carpeta de red · API externa RV_dte_api</div>
+  </div>
+  <div class="spacer"></div>
+  <div style="display:flex;gap:.6rem;align-items:center">
+    <div class="pill"><div class="dot" style="background:var(--green)"></div><span id="s-count">0 registros</span></div>
+    <div class="pill" id="s-fetched-pill" style="display:none"><div class="dot" style="background:var(--yellow)"></div><span id="s-fetched">0 descargados</span></div>
+    <button class="btn b-blue" onclick="openSetup()">📂 Cargar índice</button>
+    <button class="btn b-red"  onclick="openSync()"  id="btn-sync" disabled>⬇ Descargar DTE</button>
+  </div>
+</div>
+
+<div id="body">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-sec">
+      <h3>Buscar registro</h3>
+      <div class="srch-wrap">
+        <span class="srch-ico">🔍</span>
+        <input class="inp" id="q" placeholder="Nombre, NIT, fecha, código…" oninput="search()"/>
+      </div>
+      <div class="chips">
+        <span class="chip on" id="chip-all"   onclick="setChip('all')">Todos</span>
+        <span class="chip"    id="chip-nombre" onclick="setChip('nombre')">Nombre</span>
+        <span class="chip"    id="chip-nit"    onclick="setChip('nit')">NIT</span>
+        <span class="chip"    id="chip-fecha"  onclick="setChip('fecha')">Fecha</span>
+        <span class="chip"    id="chip-cod"    onclick="setChip('cod')">Código</span>
+      </div>
+    </div>
+    <div class="sb-sec" style="padding:.6rem .85rem">
+      <div style="display:flex;gap:.35rem">
+        <button class="btn b-ghost" style="flex:1;justify-content:center;font-size:.72rem" onclick="quickFilter('today')">Hoy</button>
+        <button class="btn b-ghost" style="flex:1;justify-content:center;font-size:.72rem" onclick="quickFilter('month')">Este mes</button>
+        <button class="btn b-ghost" style="flex:1;justify-content:center;font-size:.72rem" onclick="clearQ()">✕</button>
+      </div>
+    </div>
+    <div id="list">
+      <div class="empty">
+        Sin registros.<br><br>
+        <strong>Paso 1:</strong> Ejecuta el script<br><code style="color:#93c5fd;font-family:monospace">escanear_qr.ps1</code><br><br>
+        <strong>Paso 2:</strong> Presiona<br><strong>📂 Cargar índice</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="detail">
+    <div id="ph">
+      <div class="icon">🧾</div>
+      <div style="font-size:.88rem">Selecciona un registro</div>
+      <div style="font-size:.73rem;margin-top:.25rem;color:var(--muted)">para ver e imprimir el ticket</div>
+    </div>
+    <div id="dc">
+      <div id="dh">
+        <div id="d-title">—</div>
+        <span id="d-badge" class="badge b-badge">DTE</span>
+        <span id="d-status" class="badge b-pending" style="display:none">Sin descargar</span>
+        <div class="spacer"></div>
+        <button class="btn b-blue"  id="btn-fetch-one" onclick="fetchOne()" style="display:none">⬇ Descargar este</button>
+        <button class="btn b-green" id="btn-print"     onclick="window.print()" style="display:none">🖨 Reimprimir</button>
+      </div>
+      <div id="tarea">
+        <div id="ticket-loading" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:4rem;color:var(--muted)">
+          <div class="spinner"></div>
+          <div style="font-size:.8rem">Descargando desde API…</div>
+        </div>
+        <div class="ticket" id="tr" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- SETUP MODAL: cargar índice JSON -->
+<div id="setup-panel" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div class="modal" style="max-width:500px">
+    <h2>📂 Cargar índice QR</h2>
+
+    <div class="step">
+      <h4>① Ejecutar el script PowerShell</h4>
+      <p>Haz doble clic en <code>escanear_qr.ps1</code> — escanea la carpeta de red y genera <code>dte_index.json</code> en la misma carpeta.</p>
+    </div>
+
+    <div class="step">
+      <h4>② Cargar el JSON aquí</h4>
+      <p>Selecciona el archivo <code>dte_index.json</code> generado.</p>
+    </div>
+
+    <label class="btn b-red btn-full" style="width:100%;justify-content:center;margin-bottom:.75rem;cursor:pointer">
+      📄 Seleccionar dte_index.json
+      <input type="file" accept=".json" id="idx-file" style="display:none" onchange="loadIndex(this)"/>
+    </label>
+    <button class="btn b-ghost" style="width:100%;justify-content:center" onclick="closeSetup()">✕ Cerrar</button>
+  </div>
+</div>
+
+<!-- SYNC MODAL: descargar DTEs desde API -->
+<div id="sync-panel" class="">
+  <div class="modal">
+    <h2>⬇ Descargar DTE desde API</h2>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.85rem">
+      <div style="grid-column:1/-1">
+        <label style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.28rem">URL Base de la API</label>
+        <input class="inp" id="api-host" value="http://216.184.103.211:8080/RV_dte_api/clientejson/"/>
+      </div>
+      <div>
+        <label style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.28rem">Peticiones paralelas</label>
+        <input class="inp" id="api-conc" type="number" value="5" min="1" max="15"/>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+          <input type="checkbox" id="api-skip" checked style="accent-color:var(--accent)"/>
+          <span style="font-size:.73rem">Omitir ya descargados</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+      <button class="btn b-red"   id="b-start" onclick="startSync()">▶ Iniciar descarga</button>
+      <button class="btn b-ghost" id="b-stop"  onclick="stopSync()" disabled>⬛ Detener</button>
+      <button class="btn b-ghost"              onclick="closeSync()">✕ Cerrar</button>
+    </div>
+
+    <div class="progress-track"><div class="progress-fill" id="pbar" style="width:0"></div></div>
+    <div class="prog-lbl" id="plbl">—</div>
+    <div id="log">Listo.</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════
+//  Storage (localStorage)
+// ══════════════════════════════════════
+const LS_IDX  = 'dte_qr_index_v1';   // índice de archivos PNG {codGen: fecEmi}
+const LS_DATA = 'dte_qr_data_v1';    // datos descargados {codGen: record}
+
+function saveIndex(map) { try { localStorage.setItem(LS_IDX,  JSON.stringify(map)); } catch(e){ toast('⚠ Storage lleno'); } }
+function loadIdxLS()    { try { return JSON.parse(localStorage.getItem(LS_IDX)  || '{}'); } catch { return {}; } }
+function saveData(map)  { try { localStorage.setItem(LS_DATA, JSON.stringify(map)); } catch(e){ toast('⚠ Storage lleno'); } }
+function loadDataLS()   { try { return JSON.parse(localStorage.getItem(LS_DATA) || '{}'); } catch { return {}; } }
+
+// ══════════════════════════════════════
+//  Estado global
+// ══════════════════════════════════════
+let idx      = loadIdxLS();   // { codGen: fecEmi }
+let data     = loadDataLS();  // { codGen: record normalizado }
+let allRecs  = buildAllRecs();
+let filtered = [...allRecs];
+let activeId = null;
+let chipMode = 'all';
+let syncing  = false;
+let syncStop = false;
+let currentCod = null;
+
+function buildAllRecs() {
+  // Combinar índice + data descargada, ordenar por fecha desc
+  return Object.entries(idx).map(([cod, fec]) => ({
+    codGeneracion: cod,
+    fecEmi: fec,
+    descargado: !!data[cod],
+    record: data[cod] || null,
+  })).sort((a,b) => b.fecEmi.localeCompare(a.fecEmi));
+}
+
+// boot
+updateStats();
+renderList(allRecs);
+
+// ══════════════════════════════════════
+//  Cargar índice JSON desde archivo
+// ══════════════════════════════════════
+function loadIndex(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      // Soportar formato { registros: [...] } o array directo
+      const lista = parsed.registros ?? (Array.isArray(parsed) ? parsed : []);
+      if (!lista.length) { toast('⚠ JSON vacío o formato no reconocido'); return; }
+
+      // Construir mapa { codGeneracion: fecEmi }
+      const newIdx = {};
+      lista.forEach(r => {
+        const cod = (r.codGeneracion || r.cod || '').toUpperCase().trim();
+        const fec = r.fecEmi || r.fecha || '';
+        if (cod && fec) newIdx[cod] = fec;
+      });
+
+      const count = Object.keys(newIdx).length;
+      // Fusionar con índice existente (no borrar lo ya descargado)
+      idx = { ...idx, ...newIdx };
+      saveIndex(idx);
+
+      allRecs  = buildAllRecs();
+      filtered = [...allRecs];
+      updateStats();
+      renderList(allRecs);
+
+      closeSetup();
+      document.getElementById('btn-sync').disabled = false;
+      toast(`✓ ${count} registros cargados en el índice`);
+    } catch(err) {
+      toast('✗ Error al leer JSON: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════
+//  Normalize JSON de la API externa
+// ══════════════════════════════════════
+function g(d, ...keys) {
+  for (const k of keys)
+    if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k];
+  return '';
+}
+
+function normalize(raw, codGeneracion, fecEmi) {
+  const em = raw.emisor   ?? raw.Emisor   ?? raw.emisorInfo   ?? {};
+  const re = raw.receptor ?? raw.Receptor ?? raw.receptorInfo ?? {};
+  // La API puede devolver la data en diferentes estructuras
+  const raiz = raw.data ?? raw.documento ?? raw.dte ?? raw;
+
+  return {
+    codGeneracion,
+    fecEmi,
+    raw,
+    biz_nombre: g(raiz,'nombre_emisor','nombreEmisor','razonSocialEmisor') || em.nombre || em.razonSocial || 'GrupoRVQ',
+    biz_sub:    g(raiz,'nombre_comercial','nombreComercial') || em.nombreComercial || '',
+    biz_dir:    g(raiz,'dir_emisor','dirEmisor','direccionEmisor') || em.direccion || '',
+    biz_nrc:    g(raiz,'nrc_emisor','nrcEmisor') || em.nrc || '',
+    biz_nit:    g(raiz,'nit_emisor','nitEmisor') || em.nit || '',
+    biz_giro:   g(raiz,'actividad_economica','actividadEconomica','giro') || em.actividad || '',
+    cli_nombre: g(raiz,'nombre_cliente','nombreCliente','razonSocialReceptor','nombre') || re.nombre || re.razonSocial || '',
+    cli_nit:    g(raiz,'nit_cliente','nitCliente','nitReceptor','nit') || re.nit || '',
+    cli_nrc:    g(raiz,'nrc_cliente','nrcCliente','nrcReceptor','nrc') || re.nrc || '',
+    cli_dir:    g(raiz,'dir_cliente','dirCliente','direccionReceptor') || re.direccion || '',
+    cli_tel:    g(raiz,'tel_cliente','telefono','telefonoReceptor') || re.telefono || '',
+    cli_correo: g(raiz,'correo_cliente','correo','correoReceptor','email') || re.correo || re.email || '',
+    fecha:      g(raiz,'fecha_emision','fechaEmision','fecEmi') || fecEmi || '',
+    hora:       g(raiz,'hora','hora_emision','horaEmision') || '',
+    empleado:   g(raiz,'empleado','id_empleado','idEmpleado') || '',
+    caja:       g(raiz,'caja','id_caja','idCaja') || '',
+    tipo_doc:   g(raiz,'tipo_doc','tipoDoc','tipoDte','tipoDTE') || '',
+    total:      parseFloat(g(raiz,'total','monto_total','montoTotal','totalPagar','montoPagar') || 0),
+    efectivo:   parseFloat(g(raiz,'efectivo','montoPagado') || 0),
+    no_control: g(raiz,'numero_control','numeroControl','noControl') || '',
+    sello:      g(raiz,'sello','selloRecepcion') || '',
+    pagos:      raiz.pagos ?? raw.pagos ?? null,
+    items:      raiz.items ?? raiz.cuerpoDocumento ?? raiz.detalle ?? raw.items ?? [],
+  };
+}
+
+// ══════════════════════════════════════
+//  Stats
+// ══════════════════════════════════════
+function updateStats() {
+  const total      = Object.keys(idx).length;
+  const descargados = Object.keys(data).length;
+  document.getElementById('s-count').textContent = `${total} en índice`;
+  if (descargados > 0) {
+    document.getElementById('s-fetched-pill').style.display = 'flex';
+    document.getElementById('s-fetched').textContent = `${descargados} descargados`;
+  }
+  if (total > 0) document.getElementById('btn-sync').disabled = false;
+}
+
+// ══════════════════════════════════════
+//  Render lista
+// ══════════════════════════════════════
+function renderList(recs) {
+  filtered = recs;
+  const el = document.getElementById('list');
+  if (!recs.length) { el.innerHTML = `<div class="empty">Sin resultados.</div>`; return; }
+  el.innerHTML = recs.map(r => {
+    const nombre = r.record?.cli_nombre || '(Sin descargar)';
+    const nit    = r.record?.cli_nit    || '';
+    const total  = r.record ? `$${r.record.total.toFixed(2)}` : '';
+    return `
+    <div class="ri ${r.codGeneracion === activeId ? 'on' : ''}" onclick="selectRec('${r.codGeneracion}')">
+      <div class="ri-name">${nombre}</div>
+      <div class="ri-meta">
+        <span class="ri-fecha">${r.fecEmi}</span>
+        ${nit   ? `<span>${nit}</span>` : ''}
+        ${total ? `<span class="ri-total">${total}</span>` : ''}
+        ${!r.descargado ? `<span style="color:var(--yellow)">⬇ pendiente</span>` : ''}
+      </div>
+      <div class="ri-cod">${r.codGeneracion.slice(0,18)}…</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  Búsqueda
+// ══════════════════════════════════════
+function setChip(mode) {
+  chipMode = mode;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  document.getElementById(`chip-${mode}`).classList.add('on');
+  search();
+}
+
+function search() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  activeId = null;
+  if (!q) { renderList(allRecs); return; }
+  renderList(allRecs.filter(r => {
+    if (chipMode === 'nombre') return (r.record?.cli_nombre||'').toLowerCase().includes(q);
+    if (chipMode === 'nit')    return (r.record?.cli_nit||'').toLowerCase().includes(q);
+    if (chipMode === 'fecha')  return r.fecEmi.includes(q);
+    if (chipMode === 'cod')    return r.codGeneracion.toLowerCase().includes(q);
+    // all
+    return r.codGeneracion.toLowerCase().includes(q)
+        || r.fecEmi.includes(q)
+        || (r.record?.cli_nombre||'').toLowerCase().includes(q)
+        || (r.record?.cli_nit||'').toLowerCase().includes(q)
+        || (r.record?.cli_nrc||'').toLowerCase().includes(q)
+        || (r.record?.cli_correo||'').toLowerCase().includes(q);
+  }));
+}
+
+function clearQ() {
+  document.getElementById('q').value = '';
+  chipMode = 'all';
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  document.getElementById('chip-all').classList.add('on');
+  activeId = null;
+  renderList(allRecs);
+}
+
+function quickFilter(type) {
+  const q = type === 'today'
+    ? new Date().toISOString().slice(0,10)
+    : new Date().toISOString().slice(0,7);
+  document.getElementById('q').value = q;
+  chipMode = 'fecha';
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  document.getElementById('chip-fecha').classList.add('on');
+  search();
+}
+
+// ══════════════════════════════════════
+//  Seleccionar registro
+// ══════════════════════════════════════
+function selectRec(cod) {
+  activeId = cod;
+  currentCod = cod;
+
+  document.querySelectorAll('.ri').forEach(el => {
+    const c = el.querySelector('.ri-cod');
+    if (c) el.classList.toggle('on', c.textContent.startsWith(cod.slice(0,18)));
+  });
+
+  document.getElementById('ph').style.display  = 'none';
+  document.getElementById('dc').style.display  = 'flex';
+
+  const entry = allRecs.find(r => r.codGeneracion === cod);
+  if (!entry) return;
+
+  if (entry.record) {
+    // Ya descargado — mostrar directo
+    document.getElementById('d-title').textContent = entry.record.cli_nombre || cod.slice(0,20) + '…';
+    document.getElementById('d-badge').textContent  = entry.record.tipo_doc || 'DTE';
+    document.getElementById('d-status').style.display = 'none';
+    document.getElementById('btn-fetch-one').style.display = 'none';
+    document.getElementById('btn-print').style.display     = 'inline-flex';
+    document.getElementById('ticket-loading').style.display = 'none';
+    document.getElementById('tr').style.display = 'block';
+    renderTicket(entry.record);
+  } else {
+    // No descargado aún
+    document.getElementById('d-title').textContent = cod.slice(0,24) + '…';
+    document.getElementById('d-badge').textContent  = 'DTE';
+    document.getElementById('d-status').style.display    = 'inline-flex';
+    document.getElementById('btn-fetch-one').style.display = 'inline-flex';
+    document.getElementById('btn-print').style.display     = 'none';
+    document.getElementById('ticket-loading').style.display = 'none';
+    document.getElementById('tr').style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════
+//  Descargar un DTE individual
+// ══════════════════════════════════════
+async function fetchOne() {
+  if (!currentCod) return;
+  const fecEmi = idx[currentCod];
+  if (!fecEmi) return;
+
+  const apiBase = document.getElementById('api-host')?.value || 'http://216.184.103.211:8080/RV_dte_api/clientejson/';
+  const url = `${apiBase}?fecEmi=${fecEmi}&codGeneracion=${currentCod}`;
+
+  document.getElementById('btn-fetch-one').disabled = true;
+  document.getElementById('ticket-loading').style.display = 'flex';
+  document.getElementById('tr').style.display = 'none';
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const json = await r.json();
+    const record = normalize(json, currentCod, fecEmi);
+    data[currentCod] = record;
+    saveData(data);
+    allRecs = buildAllRecs();
+    renderList(filtered.length < allRecs.length ? filtered : allRecs);
+    updateStats();
+
+    document.getElementById('d-title').textContent = record.cli_nombre || currentCod.slice(0,20) + '…';
+    document.getElementById('d-badge').textContent  = record.tipo_doc || 'DTE';
+    document.getElementById('d-status').style.display    = 'none';
+    document.getElementById('btn-fetch-one').style.display = 'none';
+    document.getElementById('btn-print').style.display     = 'inline-flex';
+    document.getElementById('ticket-loading').style.display = 'none';
+    document.getElementById('tr').style.display = 'block';
+    renderTicket(record);
+    toast('✓ DTE descargado');
+  } catch(e) {
+    document.getElementById('ticket-loading').style.display = 'none';
+    toast('✗ Error: ' + e.message);
+  }
+  document.getElementById('btn-fetch-one').disabled = false;
+}
+
+// ══════════════════════════════════════
+//  Render ticket
+// ══════════════════════════════════════
+function renderTicket(r) {
+  const fechaHora = r.hora ? `${r.fecha} ${r.hora}` : r.fecha;
+  let pagoHTML = '';
+  if (r.pagos && Array.isArray(r.pagos) && r.pagos.length) {
+    pagoHTML = r.pagos.map(p =>
+      `${(p.codigo||p.modo||'EFE').toUpperCase()}: $${parseFloat(p.monto||p.valor||0).toFixed(2)}`
+    ).join('<br>');
+  } else { pagoHTML = `EFE: $${(r.efectivo||r.total).toFixed(2)}`; }
+
+  let itemsHTML = '';
+  if (r.items && r.items.length) {
+    itemsHTML = `<div class="t-sec">DETALLE</div><hr class="t-dash"/>`;
+    r.items.forEach(it => {
+      const desc  = it.descripcion ?? it.nombre ?? it.desc ?? '';
+      const cant  = it.cantidad ?? it.cant ?? 1;
+      const prec  = it.precioUni ?? it.precio ?? it.unitario ?? 0;
+      const monto = it.montoItem ?? it.total ?? (cant * prec);
+      itemsHTML += `<div style="display:flex;justify-content:space-between;gap:.15rem">
+        <span style="flex:1;overflow:hidden">${desc}</span>
+        <span>${cant}×${parseFloat(prec).toFixed(2)}</span>
+        <span>$${parseFloat(monto).toFixed(2)}</span>
+      </div>`;
+    });
+    itemsHTML += `<hr class="t-dash"/>`;
+  }
+
+  document.getElementById('tr').innerHTML = `
+    ${r.codGeneracion ? `<div class="t-kv"><span class="t-k">CODIGO GENERACION:</span></div><div class="t-v">${r.codGeneracion}</div>` : ''}
+    ${r.no_control    ? `<div class="t-kv"><span class="t-k">NO CONTROL:</span></div><div>${r.no_control}</div>` : ''}
+    ${r.sello         ? `<div class="t-kv"><span class="t-k">SELLO:</span></div><div class="t-v">${r.sello}</div>` : ''}
+    <div class="t-stars">${'*'.repeat(42)}</div>
+    <div class="t-c" style="font-weight:bold;font-size:.82rem;">** ${r.biz_nombre} **</div>
+    ${r.biz_sub  ? `<div class="t-c">** ${r.biz_sub} **</div>` : ''}
+    ${r.biz_dir  ? `<div class="t-c">${r.biz_dir}</div>` : ''}
+    ${r.biz_nrc  ? `<div class="t-kv"><span class="t-k">NRC: </span><span>${r.biz_nrc}</span></div>` : ''}
+    ${r.biz_nit  ? `<div class="t-kv"><span class="t-k">NIT: </span><span>${r.biz_nit}</span></div>` : ''}
+    ${r.biz_giro ? `<div class="t-kv"><span class="t-k">GIRO: </span><span>${r.biz_giro}</span></div>` : ''}
+    <div class="t-stars">${'*'.repeat(42)}</div>
+    <div class="t-sec">DATOS DEL CLIENTE</div>
+    <div class="t-stars">${'*'.repeat(42)}</div>
+    ${r.cli_nrc    ? `<div class="t-kv"><span class="t-k">NRC: </span><span>${r.cli_nrc}</span></div>` : ''}
+    ${r.cli_nit    ? `<div class="t-kv"><span class="t-k">NIT: </span><span>${r.cli_nit}</span></div>` : ''}
+    ${r.cli_nombre ? `<div class="t-kv"><span class="t-k">NOMBRE: </span><span>${r.cli_nombre}</span></div>` : ''}
+    ${r.cli_dir    ? `<div class="t-kv"><span class="t-k">DIR: </span><span>${r.cli_dir}</span></div>` : ''}
+    ${r.cli_tel    ? `<div class="t-kv"><span class="t-k">TEL: </span><span>${r.cli_tel}</span></div>` : ''}
+    ${r.cli_correo ? `<div class="t-kv"><span class="t-k">CORREO: </span><span>${r.cli_correo}</span></div>` : ''}
+    <div class="t-stars">${'*'.repeat(42)}</div>
+    <div class="t-nf">NO ES UN DOCUMENTO FISCAL<br>PARA CONSULTAS ESCRIBE AL CORREO<br>soporte.dte@gruporvq.com · 2522-8849</div>
+    <div class="t-stars">${'*'.repeat(42)}</div>
+    ${fechaHora ? `<div>${fechaHora}${r.empleado ? `&nbsp;&nbsp;&nbsp;EMPLEADO: ${r.empleado}` : ''}</div>` : ''}
+    <div>${r.tipo_doc ? `TIPO DOC: ${r.tipo_doc}` : ''}${r.caja ? `&nbsp;&nbsp;CAJA: ${r.caja}` : ''}</div>
+    <hr class="t-solid"/>
+    ${itemsHTML}
+    <div class="t-total"><span>TOTAL:</span><span>$${r.total.toFixed(2)}</span></div>
+    <div style="margin-top:.38rem;font-size:.68rem">
+      <div>## FORMAS DE PAGO ##</div>
+      <div>======================================</div>
+      <div>${pagoHTML}</div>
+      <div>======================================</div>
+    </div>
+    <div class="t-c" style="font-size:.62rem;color:#777;margin-top:.4rem">Documento DTE · V0.4.0.9</div>
+    <div class="t-c" style="font-size:.6rem;color:#aaa;margin:.45rem 0 .15rem">[ QR — Escanea para descargar tu DTE ]</div>
+  `;
+}
+
+// ══════════════════════════════════════
+//  Sync masivo
+// ══════════════════════════════════════
+function openSync()  { document.getElementById('sync-panel').classList.add('on'); }
+function closeSync() { if (!syncing) document.getElementById('sync-panel').classList.remove('on'); }
+function openSetup() { document.getElementById('setup-panel').style.display = 'flex'; }
+function closeSetup(){ document.getElementById('setup-panel').style.display = 'none'; }
+
+function addLog(msg) {
+  const el = document.getElementById('log');
+  el.textContent += '\n' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function startSync() {
+  if (syncing) return;
+  const pendientes = allRecs.filter(r => !r.descargado);
+  if (!pendientes.length) { toast('Todos los registros ya están descargados ✓'); return; }
+
+  syncing  = true; syncStop = false;
+  document.getElementById('b-start').disabled = true;
+  document.getElementById('b-stop').disabled  = false;
+  document.getElementById('log').textContent  = '';
+  document.getElementById('pbar').style.width = '0';
+
+  const apiBase = document.getElementById('api-host').value.replace(/\?.*$/,'');
+  const conc    = Math.max(1, Math.min(15, parseInt(document.getElementById('api-conc').value) || 5));
+  const skip    = document.getElementById('api-skip').checked;
+
+  const queue = skip ? pendientes : allRecs;
+  const total  = queue.length;
+  let done = 0, saved = 0, errs = 0, skipped = 0;
+
+  addLog(`Descargando ${total} DTE · concurrencia ${conc}`);
+  addLog(`API: ${apiBase}`);
+  addLog('---');
+
+  for (let base = 0; base < total && !syncStop; base += conc) {
+    const chunk = queue.slice(base, base + conc);
+
+    await Promise.all(chunk.map(async entry => {
+      if (syncStop) return;
+      if (skip && data[entry.codGeneracion]) { skipped++; done++; tick(done,total,saved,errs,skipped); return; }
+
+      const url = `${apiBase}?fecEmi=${entry.fecEmi}&codGeneracion=${entry.codGeneracion}`;
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) { errs++; if(errs<=5) addLog(`✗ HTTP ${r.status}: ${entry.codGeneracion.slice(0,12)}…`); }
+        else {
+          const json = await r.json();
+          if (json && typeof json === 'object') {
+            data[entry.codGeneracion] = normalize(json, entry.codGeneracion, entry.fecEmi);
+            saved++;
+          } else { errs++; }
+        }
+      } catch(e) {
+        if (e.name !== 'AbortError') { errs++; if(errs<=5) addLog(`✗ ${e.message.slice(0,40)}`); }
+      }
+      done++;
+      tick(done, total, saved, errs, skipped);
+    }));
+
+    // Guardar cada chunk
+    saveData(data);
+  }
+
+  saveData(data);
+  allRecs = buildAllRecs();
+  renderList(allRecs);
+  updateStats();
+
+  addLog(`\n=== LISTO ===`);
+  addLog(`✓ Descargados : ${saved}`);
+  addLog(`— Omitidos    : ${skipped}`);
+  addLog(`✗ Errores     : ${errs}`);
+  toast(`Sync completo · ${saved} DTE descargados ✓`);
+
+  syncing = false;
+  document.getElementById('b-start').disabled = false;
+  document.getElementById('b-stop').disabled  = true;
+}
+
+function stopSync() {
+  syncStop = true;
+  addLog('\n⬛ Detenido.');
+  syncing = false;
+  document.getElementById('b-start').disabled = false;
+  document.getElementById('b-stop').disabled  = true;
+}
+
+function tick(done, total, saved, errs, skip) {
+  const pct = Math.round(done / total * 100);
+  document.getElementById('pbar').style.width = pct + '%';
+  document.getElementById('plbl').textContent =
+    `${done}/${total} (${pct}%) · ✓ ${saved} · — ${skip} omitidos · ✗ ${errs}`;
+}
+
+// ══════════════════════════════════════
+//  Toast
+// ══════════════════════════════════════
+let _tt;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(_tt); _tt = setTimeout(() => el.classList.remove('on'), 3500);
+}
+</script>
+</body>
+</html>
