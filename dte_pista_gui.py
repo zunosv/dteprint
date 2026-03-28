@@ -20,6 +20,14 @@ import io
 import base64
 
 try:
+    import pystray
+    from pystray import MenuItem as TrayItem
+    from PIL import Image as PILImage
+    TRAY_DISPONIBLE = True
+except ImportError:
+    TRAY_DISPONIBLE = False
+
+try:
     import qrcode
     from PIL import Image, ImageTk
     QR_DISPONIBLE = True
@@ -488,9 +496,54 @@ class DTEApp(tk.Tk):
         self._descargando = False
         self._stop_flag = False
         self._log_q = queue.Queue()
+        self._auto_scan_job = None
 
+        self._tray_icon = None
         self._build_ui()
         self._poll_log()
+        self._iniciar_auto_scan()
+        self._setup_tray()
+        # Al cerrar con X → minimizar al tray en vez de salir
+        self.protocol("WM_DELETE_WINDOW", self._ocultar_a_tray)
+
+    # ── SYSTEM TRAY ─────────────────────────────────────────────
+
+    def _crear_icono_pil(self):
+        """Crea un ícono rojo 64x64 con la letra G para el tray."""
+        try:
+            img = PILImage.new("RGB", (64, 64), color="#e63222")
+            return img
+        except Exception:
+            return None
+
+    def _setup_tray(self):
+        if not TRAY_DISPONIBLE:
+            return
+        icono = self._crear_icono_pil()
+        if not icono:
+            return
+        menu = pystray.Menu(
+            TrayItem("Abrir DTE Pista", self._mostrar_ventana, default=True),
+            TrayItem("Salir", self._salir_completo),
+        )
+        self._tray_icon = pystray.Icon(
+            "DTE Pista", icono, "DTE Pista — GrupoRVQ", menu)
+        t = threading.Thread(target=self._tray_icon.run, daemon=True)
+        t.start()
+
+    def _ocultar_a_tray(self):
+        """Al presionar X, oculta la ventana en vez de cerrar."""
+        self.withdraw()
+
+    def _mostrar_ventana(self, icon=None, item=None):
+        """Restaura la ventana desde el tray."""
+        self.after(0, self.deiconify)
+
+    def _salir_completo(self, icon=None, item=None):
+        """Cierra todo: tray + app."""
+        if self._tray_icon:
+            self._tray_icon.stop()
+        self.after(0, self.destroy)
 
     # ── UI ──────────────────────────────────────────────────────
 
@@ -873,6 +926,68 @@ class DTEApp(tk.Tk):
         self._log.config(state="disabled")
 
     # ── LÓGICA BÚSQUEDA ─────────────────────────────────────────
+
+    # ── AUTO-ESCANEO CADA 5 MIN ─────────────────────────────────
+
+    INTERVALO_SCAN_MS = 5 * 60 * 1000   # 5 minutos en milisegundos
+
+    def _iniciar_auto_scan(self):
+        """Lanza el primer escaneo y programa el siguiente cada 5 minutos."""
+        self._auto_scan()
+
+    def _auto_scan(self):
+        """
+        1. Busca el NO_UNICO mas alto en la carpeta local.
+        2. Descarga desde ese +1 hacia adelante via API.
+        3. Para al acumular 10 fallos consecutivos.
+        4. Recarga la lista si hubo descargas nuevas.
+        """
+        carpeta = CARPETA_LOCAL
+        MAX_FALLOS = 20
+
+        def worker():
+            archivos = glob.glob(os.path.join(carpeta, "*.json"))
+            nums = []
+            for a in archivos:
+                nombre = os.path.splitext(os.path.basename(a))[0]
+                try:
+                    nums.append(int(nombre))
+                except ValueError:
+                    pass
+
+            if not nums:
+                self.after(0, lambda: setattr(self, "_auto_scan_job",
+                    self.after(self.INTERVALO_SCAN_MS, self._auto_scan)))
+                return
+
+            siguiente = max(nums) + 1
+            fallos = 0
+            descargados = 0
+
+            while fallos < MAX_FALLOS:
+                d, pista, err = descargar_uno(siguiente, carpeta)
+                if err or d is None:
+                    fallos += 1
+                else:
+                    fallos = 0
+                    if pista:
+                        descargados += 1
+                siguiente += 1
+
+            def actualizar():
+                if descargados > 0:
+                    registros = cargar_carpeta(carpeta)
+                    self._registros = registros
+                    self._buscar()
+                    self._lbl_total.config(
+                        text=f"{len(registros)} registros  (+{descargados} nuevos)",
+                        fg=COLORES["green"])
+                self._auto_scan_job = self.after(
+                    self.INTERVALO_SCAN_MS, self._auto_scan)
+
+            self.after(0, actualizar)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _cargar_carpeta_buscar(self):
         carpeta = self._carpeta_bus.get().strip() or CARPETA_LOCAL
