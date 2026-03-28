@@ -244,6 +244,37 @@ def normalizar(t):
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
 
+# Palabras que indican consumidor final genérico (sin nombre real)
+_CONSUMIDOR_GENERICO = {
+    "consumidor final", "consumidor", "final", "cf", "s/n", "sin nombre",
+    "cliente general", "cliente", "publico general", "publico en general",
+}
+
+def tiene_nombre_real(raw):
+    """
+    Retorna True si el DTE debe guardarse según el filtro de nombre:
+    - CCF (tipo 03): siempre True
+    - FAC (tipo 01/11): True solo si el receptor tiene nombre real (no genérico)
+    """
+    ident = raw.get("identificacion") or {}
+    recep = raw.get("receptor") or {}
+    tipo  = str(ident.get("tipoDte") or "").strip()
+
+    # CCF → siempre guardar
+    if tipo in ("03", "02"):
+        return True
+
+    # FAC → revisar nombre del receptor
+    nombre = str(recep.get("nombre") or "").strip().lower()
+    if not nombre:
+        return False  # sin nombre → genérico
+
+    # Normalizar y comparar contra lista de genéricos
+    nombre_norm = unicodedata.normalize("NFKD", nombre)
+    nombre_norm = "".join(c for c in nombre_norm if not unicodedata.combining(c))
+    return nombre_norm not in _CONSUMIDOR_GENERICO
+
+
 def descargar_uno(no_unico, carpeta_destino):
     """
     Descarga un DTE por NO_UNICO.
@@ -269,15 +300,16 @@ def descargar_uno(no_unico, carpeta_destino):
     if raw is None:
         return None, False, f"sin JSON ({texto[:60]})"
 
-    pista = es_pista(raw)
+    pista  = es_pista(raw)
+    nombre = tiene_nombre_real(raw)
     d = parsear_dte(raw, no_unico_hint=str(no_unico))
 
-    if pista:
+    if pista and nombre:
         os.makedirs(carpeta_destino, exist_ok=True)
         with open(dest, "w", encoding="utf-8") as f:
             json.dump(raw, f, ensure_ascii=False, indent=2)
 
-    return d, pista, None
+    return d, (pista and nombre), None
 
 
 def cargar_carpeta(carpeta):
@@ -516,6 +548,54 @@ class DTEApp(tk.Tk):
         except Exception:
             return None
 
+    # ── Registro de Windows ─────────────────────────────────────
+    REG_KEY  = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    REG_NAME = "DTEPistaGrupoRVQ"
+
+    def _esta_en_inicio(self):
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                self.REG_KEY, 0, winreg.KEY_READ) as k:
+                winreg.QueryValueEx(k, self.REG_NAME)
+            return True
+        except Exception:
+            return False
+
+    def _registrar_inicio(self):
+        """Registra pythonw.exe + este script en HKCU Run."""
+        try:
+            import winreg, sys
+            # pythonw.exe está junto a python.exe, no abre consola negra
+            pythonw = sys.executable.replace("python.exe", "pythonw.exe")
+            script  = os.path.abspath(__file__)
+            cmd     = f'"{pythonw}" "{script}" --tray'
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                self.REG_KEY, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.SetValueEx(k, self.REG_NAME, 0, winreg.REG_SZ, cmd)
+            messagebox.showinfo("Inicio automático",
+                "✓ El programa arrancará automáticamente con Windows.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo registrar:\n{e}")
+
+    def _quitar_inicio(self):
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                self.REG_KEY, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.DeleteValue(k, self.REG_NAME)
+            messagebox.showinfo("Inicio automático",
+                "✓ Inicio automático eliminado.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo eliminar:\n{e}")
+
+    def _toggle_inicio(self, icon=None, item=None):
+        if self._esta_en_inicio():
+            self.after(0, self._quitar_inicio)
+        else:
+            self.after(0, self._registrar_inicio)
+
+    # ── Tray ─────────────────────────────────────────────────────
     def _setup_tray(self):
         if not TRAY_DISPONIBLE:
             return
@@ -524,6 +604,13 @@ class DTEApp(tk.Tk):
             return
         menu = pystray.Menu(
             TrayItem("Abrir DTE Pista", self._mostrar_ventana, default=True),
+            pystray.Menu.SEPARATOR,
+            TrayItem(
+                lambda item: "Quitar inicio automático" if self._esta_en_inicio()
+                             else "Agregar a inicio automático",
+                self._toggle_inicio
+            ),
+            pystray.Menu.SEPARATOR,
             TrayItem("Salir", self._salir_completo),
         )
         self._tray_icon = pystray.Icon(
