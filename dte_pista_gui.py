@@ -260,19 +260,8 @@ def tiene_nombre_real(raw):
     recep = raw.get("receptor") or {}
     tipo  = str(ident.get("tipoDte") or "").strip()
 
-    # CCF → siempre guardar
-    if tipo in ("03", "02"):
-        return True
-
-    # FAC → revisar nombre del receptor
-    nombre = str(recep.get("nombre") or "").strip().lower()
-    if not nombre:
-        return False  # sin nombre → genérico
-
-    # Normalizar y comparar contra lista de genéricos
-    nombre_norm = unicodedata.normalize("NFKD", nombre)
-    nombre_norm = "".join(c for c in nombre_norm if not unicodedata.combining(c))
-    return nombre_norm not in _CONSUMIDOR_GENERICO
+    # Solo CCF (tipo 03/02)
+    return tipo in ("03", "02")
 
 
 def descargar_uno(no_unico, carpeta_destino):
