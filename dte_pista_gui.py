@@ -260,8 +260,17 @@ def tiene_nombre_real(raw):
     recep = raw.get("receptor") or {}
     tipo  = str(ident.get("tipoDte") or "").strip()
 
-    # Solo CCF (tipo 03/02)
-    return tipo in ("03", "02")
+    # CCF real: tipo 03 o 02
+    if tipo in ("03", "02"):
+        return True
+
+    # Algunos CCF vienen con tipoDte "01" pero llevan NRC o NIT del receptor
+    nrc = str(recep.get("nrc") or "").strip()
+    nit = str(recep.get("numDocumento") or "").strip()
+    if nrc or nit:
+        return True
+
+    return False
 
 
 def descargar_uno(no_unico, carpeta_destino):
